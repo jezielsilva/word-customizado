@@ -1,0 +1,405 @@
+// Editor de peças. Global (ViewEncapsulation.None) porque o DOM do ProseMirror não é do Angular.
+// A seção "Documento" é a mesma que o servidor usará para gerar o PDF.
+
+.pe-editor {
+  --pe-ui: var(--font-body, system-ui, -apple-system, 'Segoe UI', sans-serif);
+  --pe-primary: #70398c;
+  --pe-primary-dark: #5c2e74;
+  --pe-primary-lighten: #d9c6e6;
+  --pe-primary-lightest: #f6f0fa;
+  --pe-border: #e2e8f0;
+  --pe-text: #0f172a;
+  --pe-text2: #64748b;
+  --pe-canvas: #e2e8f0;
+  --pe-danger: #dc2626;
+  --pe-warn: #b45309;
+
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  height: 100%;
+  background: #fff;
+  font-family: var(--pe-ui);
+  color: var(--pe-text);
+}
+
+// ---------- Barra de ferramentas ----------
+.pe-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 5;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 8px 12px;
+  background: #fff;
+  border-bottom: 1px solid var(--pe-border);
+  overflow-x: auto;
+  scrollbar-width: thin;
+}
+.pe-group {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding-right: 6px;
+  margin-right: 2px;
+  border-right: 1px solid var(--pe-border);
+  flex-shrink: 0;
+}
+.pe-group--zoom {
+  border: 1px solid var(--pe-border);
+  border-radius: 999px;
+  padding: 0 4px;
+}
+.pe-flex { flex: 1; }
+.pe-tb {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: #334155;
+  cursor: pointer;
+  &:hover:not(:disabled) { background: #f1f5f9; }
+  &.is-on { background: var(--pe-primary-lightest); color: var(--pe-primary-dark); }
+  &:disabled { opacity: .4; cursor: default; }
+  &:focus-visible { outline: 2px solid var(--pe-primary); outline-offset: 1px; }
+}
+.pe-tb--sm { width: 28px; height: 28px; }
+.pe-zoom {
+  min-width: 48px;
+  border: 0;
+  background: none;
+  font: 500 12px var(--pe-ui);
+  color: var(--pe-text2);
+  cursor: pointer;
+}
+.pe-select {
+  height: 32px;
+  border: 1px solid var(--pe-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0 8px;
+  font: 14px var(--pe-ui);
+  color: var(--pe-text);
+  &:disabled { opacity: .5; }
+}
+.pe-select--font { width: 160px; }
+.pe-select--size { width: 56px; }
+.pe-select--line { width: 110px; }
+.pe-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  height: 34px;
+  padding: 0 14px;
+  border: 1px solid var(--pe-border);
+  border-radius: 999px;
+  background: #fff;
+  font: 500 14px var(--pe-ui);
+  color: var(--pe-text);
+  cursor: pointer;
+  white-space: nowrap;
+  &:hover:not(:disabled) { border-color: var(--pe-primary-lighten); background: var(--pe-primary-lightest); }
+  &:disabled { opacity: .5; cursor: default; }
+}
+.pe-btn--sm { height: 30px; padding: 0 12px; font-size: 13px; }
+.pe-btn--primary { background: var(--pe-primary); border-color: var(--pe-primary); color: #fff; &:hover:not(:disabled) { background: var(--pe-primary-dark); } }
+.pe-btn--danger { color: var(--pe-danger); }
+.pe-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font: 500 12px var(--pe-ui);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.pe-badge--muted { background: #f1f5f9; color: var(--pe-text2); }
+.pe-badge--danger { background: #fef2f2; color: var(--pe-danger); }
+.pe-badge--warn { background: #fffbeb; color: var(--pe-warn); }
+.pe-icon { display: inline-grid; place-items: center; }
+
+// ---------- Área da folha ----------
+.pe-canvas {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: var(--pe-canvas);
+  padding: 24px 16px 48px;
+}
+.pe-zoom-box { margin: 0 auto; }
+.pe-stack { transform-origin: top left; }
+
+.pe-ruler {
+  position: relative;
+  height: 20px;
+  margin-bottom: 8px;
+  background: #fff;
+  border-radius: 2px;
+  font: 9px var(--pe-ui);
+  color: var(--pe-text2);
+  overflow: hidden;
+  user-select: none;
+}
+.pe-ruler__margin { position: absolute; inset: 0 auto 0 0; background: #cbd5e1; opacity: .5; }
+.pe-ruler__margin--right { inset: 0 0 0 auto; }
+.pe-ruler__tick {
+  position: absolute;
+  bottom: 0;
+  width: 1px;
+  height: 6px;
+  background: #94a3b8;
+  i { position: absolute; bottom: 7px; left: -3px; font-style: normal; }
+}
+.pe-ruler__indent {
+  position: absolute;
+  top: 0;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border: 5px solid transparent;
+  border-top: 7px solid var(--pe-primary);
+}
+
+.pe-sheets { position: relative; }
+.pe-page {
+  position: absolute;
+  left: 0;
+  width: 210mm;
+  height: 297mm;
+  background: #fff;
+  box-shadow: 0 1px 3px rgba(15, 23, 42, .12), 0 6px 18px -8px rgba(15, 23, 42, .3);
+  pointer-events: none;
+  overflow: hidden;
+}
+.pe-page__header {
+  position: absolute;
+  top: 10mm;
+  left: var(--pe-m-left);
+  right: var(--pe-m-right);
+  height: calc(var(--pe-m-top) - 14mm);
+}
+.pe-page__footer {
+  position: absolute;
+  bottom: 5mm;
+  left: var(--pe-m-left);
+  right: var(--pe-m-right);
+  min-height: calc(var(--pe-m-bottom) - 8mm);
+  font: 7.5pt var(--pe-font);
+  color: #475569;
+  text-align: center;
+  border-top: .5pt solid #cbd5e1;
+  padding-top: 2mm;
+}
+.pe-page__number { margin-top: 1mm; }
+.pe-page__watermark {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  opacity: .08;
+  color: var(--pe-brand);
+  img { max-width: 60%; max-height: 50%; }
+  span {
+    width: 110mm;
+    height: 110mm;
+    display: grid;
+    place-items: center;
+    border-radius: 18mm;
+    background: var(--pe-brand);
+    color: #fff;
+    font: 700 60mm/1 var(--pe-ui);
+  }
+}
+
+// Papel timbrado padrão (o HTML vem da configuração do escritório).
+.pe-letterhead {
+  display: flex;
+  align-items: center;
+  gap: 3mm;
+  height: 100%;
+  border-bottom: .5pt solid #cbd5e1;
+  font-family: var(--pe-font);
+  color: #1e293b;
+}
+.pe-letterhead__logo {
+  width: 11mm;
+  height: 11mm;
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  border-radius: 2mm;
+  background: var(--pe-brand);
+  color: #fff;
+  font: 700 12pt var(--pe-ui);
+}
+.pe-letterhead__nome { font-size: 9.5pt; font-weight: 700; }
+.pe-letterhead__linha { font-size: 7pt; color: #64748b; margin-top: .6mm; }
+
+// ---------- Documento (mesmo CSS do PDF) ----------
+.pe-content { position: relative; }
+.pe-doc {
+  position: relative;
+  box-sizing: border-box;
+  min-height: inherit;
+  padding: var(--pe-m-top) var(--pe-m-right) 0 var(--pe-m-left);
+  outline: none;
+  font-family: var(--pe-font);
+  font-size: var(--pe-size);
+  line-height: var(--pe-line);
+  color: #111;
+  caret-color: #111;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+  font-variant-ligatures: none;
+
+  // Sem margens verticais: a paginação mede blocos pelo offsetTop.
+  p, h1, h2, h3, ul, ol, li { margin: 0; }
+  p {
+    text-align: justify;
+    text-indent: var(--pe-indent);
+    padding-bottom: 6pt;
+  }
+  h1, h2, h3 { text-align: center; text-indent: 0; padding-bottom: 6pt; font-weight: 700; }
+  h1 { font-size: 1.15em; text-transform: uppercase; }
+  h2 { font-size: 1.05em; }
+  h3 { font-size: 1em; }
+  ul, ol { padding: 0 0 6pt 2em; }
+  li > p { text-indent: 0; padding-bottom: 0; }
+  ul { list-style: disc; }
+
+  ::selection { background: #c7d2fe; }
+}
+
+.pe-page-spacer { pointer-events: none; user-select: none; }
+
+.pe-page-break {
+  position: relative;
+  height: 1px;
+  margin: 0;
+  &::after {
+    content: 'Quebra de página';
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -6px;
+    border-top: 1px dashed #94a3b8;
+    font: 9px var(--pe-ui);
+    color: #94a3b8;
+    text-align: center;
+    line-height: 0;
+    padding-top: 0;
+  }
+  &.ProseMirror-selectednode::after { border-color: var(--pe-primary); color: var(--pe-primary); }
+}
+
+// ---------- Chip de campo ----------
+.pe-field {
+  display: inline-flex;
+  align-items: center;
+  gap: .25em;
+  padding: 0 .55em;
+  margin: 0 .05em;
+  border: 1px solid var(--pe-primary-lighten);
+  border-radius: 999px;
+  background: var(--pe-primary-lightest);
+  color: var(--pe-primary-dark);
+  font: 500 .82em/1.45 var(--pe-ui);
+  text-indent: 0;
+  white-space: nowrap;
+  vertical-align: .05em;
+  cursor: pointer;
+  user-select: none;
+
+  &.is-selected, &.ProseMirror-selectednode { outline: 2px solid var(--pe-primary); outline-offset: 1px; }
+  &.is-unknown { border-color: var(--pe-danger); background: #fef2f2; color: var(--pe-danger); }
+  .pe-field__preview { display: none; }
+}
+strong .pe-field { font-weight: 800; }
+em .pe-field { font-style: italic; }
+u .pe-field .pe-field__label, u .pe-field .pe-field__preview { text-decoration: underline; }
+
+.pe-editor.is-preview .pe-field {
+  padding: 0;
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+  background: #fef9c3;
+  color: inherit;
+  font: inherit;
+  vertical-align: baseline;
+  svg, .pe-field__label { display: none; }
+  .pe-field__preview { display: inline; }
+}
+
+.pe-editor.is-readonly .pe-field { cursor: default; }
+
+// ---------- Seletor e popover ----------
+.pe-overlay { position: fixed; inset: 0; z-index: 40; }
+.pe-picker, .pe-popover {
+  position: fixed;
+  z-index: 41;
+  background: #fff;
+  border: 1px solid var(--pe-border);
+  border-radius: 12px;
+  box-shadow: 0 16px 40px -12px rgba(15, 23, 42, .35);
+  font-family: var(--pe-ui);
+}
+.pe-picker {
+  top: 15vh;
+  left: 50%;
+  width: min(440px, calc(100vw - 32px));
+  transform: translateX(-50%);
+  padding: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 60vh;
+}
+.pe-picker__list { overflow: auto; display: flex; flex-direction: column; }
+.pe-picker__group { padding: 8px 8px 4px; font: 600 11px var(--pe-ui); text-transform: uppercase; letter-spacing: .04em; color: var(--pe-text2); }
+.pe-picker__item {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 1px;
+  padding: 7px 10px;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  text-align: left;
+  cursor: pointer;
+  font: 14px var(--pe-ui);
+  color: var(--pe-text);
+  small { color: var(--pe-text2); font-size: 12px; }
+  &.is-active { background: var(--pe-primary-lightest); }
+}
+.pe-picker__empty { padding: 16px; color: var(--pe-text2); font-size: 14px; }
+.pe-input {
+  width: 100%;
+  box-sizing: border-box;
+  height: 36px;
+  border: 1px solid var(--pe-border);
+  border-radius: 8px;
+  padding: 0 10px;
+  font: 14px var(--pe-ui);
+  &:focus { outline: 2px solid var(--pe-primary-lighten); border-color: var(--pe-primary); }
+}
+.pe-popover {
+  width: 300px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  label { display: flex; flex-direction: column; gap: 4px; font: 600 12px var(--pe-ui); color: var(--pe-text2); }
+}
+.pe-popover__actions { display: flex; gap: 6px; .pe-btn { height: 32px; padding: 0 12px; font-size: 13px; } }
+.pe-spacer { flex: 1; }
+
+@media (max-width: 720px) {
+  .pe-canvas { padding: 12px 8px 32px; }
+}
