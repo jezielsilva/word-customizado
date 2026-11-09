@@ -218,6 +218,10 @@ export class EditorComponent {
       attrs: { mode: 'document', schemaVersion: SCHEMA_VERSION, ...(json.attrs ?? {}) },
     };
     this.editor.commands.setContent(doc, { emitUpdate: false });
+    // setContent troca só o conteúdo; os atributos do nó raiz (modo) entram à parte.
+    const { tr } = this.editor.state;
+    for (const [k, v] of Object.entries(doc.attrs!)) tr.setDocAttribute(k, v);
+    this.editor.view.dispatch(tr.setMeta('addToHistory', false));
     this.limparHistorico();
     this.edicaoCampo.set(null);
     this.atualizarEstado();
