@@ -86,10 +86,9 @@
 </div>
 
 <div class="pe-canvas" #canvas>
-  @if (buscaAberta(); as modoBusca) {
-    <pe-busca-bar [estado]="busca()" [podeSubstituir]="!readonly()" [comSubstituir]="modoBusca === 'substituir'"
-      (buscar)="buscar($event)" (navegar)="navegarBusca($event)" (substituir)="substituir($event)" (fechar)="fecharBusca()" />
-  }
+  <!-- Sempre no DOM (escondida) para receber o foco no mesmo instante do Ctrl+F. -->
+  <pe-busca-bar [estado]="busca()" [podeSubstituir]="!readonly()"
+    (buscar)="buscar($event)" (navegar)="navegarBusca($event)" (substituir)="substituir($event)" (fechar)="fecharBusca()" />
   <div class="pe-zoom-box" [style.width.px]="medidas().largura * escala()" [style.height.px]="(alturaTotal() + 28) * escala()">
     <div class="pe-stack" [style.width.px]="medidas().largura" [style.transform]="'scale(' + escala() + ')'" [style]="variaveisDoc()">
       <div class="pe-ruler" aria-hidden="true">

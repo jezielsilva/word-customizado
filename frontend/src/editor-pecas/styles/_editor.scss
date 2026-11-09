@@ -139,6 +139,7 @@
 }
 
 // ---------- Localizar e substituir ----------
+.pe-canvas > pe-busca-bar[hidden] { display: none; }
 .pe-canvas > pe-busca-bar {
   position: sticky;
   top: 0;
@@ -359,13 +360,30 @@
   ::selection { background: #c7d2fe; }
 }
 
-.pe-page-spacer { pointer-events: none; user-select: none; }
+.pe-page-spacer { position: relative; pointer-events: none; user-select: none; }
+// Linha vazia que divide a tabela entre folhas: sem bordas nem altura de texto.
+tr.pe-page-spacer--linha > td { padding: 0; border: 0; background: none; font-size: 0; line-height: 0; }
+// Cobre a borda tracejada de blocos lógicos: branco na folha, cinza no espaço entre folhas.
+.pe-page-spacer__mask {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 5px;
+  background: linear-gradient(
+    to bottom,
+    #fff var(--pe-gap-ini),
+    var(--pe-canvas, #e2e8f0) var(--pe-gap-ini),
+    var(--pe-canvas, #e2e8f0) var(--pe-gap-fim),
+    #fff var(--pe-gap-fim)
+  );
+}
 
 // Blocos condicionais e de repetição (só no modo Modelo).
 .pe-logic {
   position: relative;
-  margin: 2mm 0 4mm;
-  padding: 4mm 3mm 1mm;
+  // A borda fica 4 mm para fora da coluna de texto (na margem), longe do timbrado.
+  margin: 2mm -4mm 4mm;
+  padding: 4mm 4mm 1mm;
   border: 1.5px dashed #a78bca;
   border-radius: 6px;
 }

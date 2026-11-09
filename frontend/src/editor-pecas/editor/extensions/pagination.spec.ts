@@ -1,6 +1,6 @@
 import { calcularPaginacao, type BlocoMedido, type LayoutPagina, type Segmento } from './pagination';
 
-const layout: LayoutPagina = { alturaPagina: 1000, alturaConteudo: 800, gap: 20 };
+const layout: LayoutPagina = { alturaPagina: 1000, alturaConteudo: 800, gap: 20, margemSuperior: 100 };
 const bloco = (pos: number, top: number, height: number, extra: Partial<BlocoMedido> = {}): BlocoMedido => ({
   pos, top, bottom: top + height, inline: false, quebraForcadaDepois: false, divisivel: false, ...extra,
 });
@@ -36,6 +36,13 @@ describe('calcularPaginacao', () => {
     const r = calcularPaginacao([bloco(0, 100, 600), p], layout, () => linhas);
     expect(r.espacadores).toEqual([{ pos: 50, altura: 1020 - 800, inline: true }]);
     expect(r.paginas).toBe(2);
+  });
+
+  it('quebra tabela entre linhas', () => {
+    const linhas = [0, 1, 2, 3, 4].map((i) => bloco(10 + i * 5, 100 + i * 200, 200, { linha: true, colunas: 3 }));
+    const r = calcularPaginacao(linhas, layout);
+    expect(r.paginas).toBe(2);
+    expect(r.espacadores).toEqual([{ pos: 30, altura: 1020 - 800, inline: false, linha: true, colunas: 3 }]);
   });
 
   it('bloco indivisível maior que a página não gera espaçador negativo', () => {

@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, ElementRef, afterNextRender, input, output, signal, viewChild } from '@angular/core';
+import { ChangeDetectionStrategy, Component, ElementRef, inject, input, output, signal, viewChild } from '@angular/core';
 import type { EstadoBusca, OpcoesBusca } from '../extensions/busca';
 import { IconComponent } from './icon.component';
 
@@ -7,6 +7,7 @@ import { IconComponent } from './icon.component';
   selector: 'pe-busca-bar',
   imports: [IconComponent],
   changeDetection: ChangeDetectionStrategy.OnPush,
+  host: { hidden: '' },
   template: `
     <div class="pe-search" role="search" (keydown.escape)="fechar.emit()">
       <div class="pe-search__row">
@@ -38,7 +39,6 @@ import { IconComponent } from './icon.component';
 export class BuscaBarComponent {
   readonly estado = input.required<EstadoBusca>();
   readonly podeSubstituir = input(true);
-  readonly comSubstituir = input(false);
   readonly buscar = output<{ termo: string; opcoes?: Partial<OpcoesBusca> }>();
   readonly navegar = output<1 | -1>();
   readonly substituir = output<{ texto: string; todos: boolean }>();
@@ -46,18 +46,19 @@ export class BuscaBarComponent {
 
   protected readonly substituindo = signal(false);
   private readonly campo = viewChild.required<ElementRef<HTMLInputElement>>('campo');
+  private readonly host = inject<ElementRef<HTMLElement>>(ElementRef).nativeElement;
 
-  constructor() {
-    afterNextRender(() => {
-      this.substituindo.set(this.comSubstituir());
-      this.focar();
-    });
-  }
-
-  focar(substituir = false): void {
+  /** Mostra e foca de forma síncrona (o atributo muda direto no DOM, sem esperar a detecção de mudanças). */
+  abrir(substituir: boolean): void {
     if (substituir) this.substituindo.set(true);
+    this.host.hidden = false;
     const el = this.campo().nativeElement;
     el.focus();
     el.select();
+  }
+
+  esconder(): void {
+    this.host.hidden = true;
+    this.substituindo.set(false);
   }
 }

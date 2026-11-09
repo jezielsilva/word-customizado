@@ -9,6 +9,8 @@ export interface LayoutPagina {
   /** Altura útil: página menos margens superior e inferior. */
   alturaConteudo: number;
   gap: number;
+  /** Margem superior: o espaçador termina no início da área útil da folha seguinte. */
+  margemSuperior: number;
 }
 
 /** Trecho que não pode ser partido: um bloco inteiro ou uma linha de parágrafo. */
@@ -19,6 +21,10 @@ export interface Segmento {
   bottom: number;
   /** true = linha dentro de um parágrafo (espaçador inline). */
   inline: boolean;
+  /** true = linha de tabela (espaçador vira uma <tr> vazia). */
+  linha?: boolean;
+  /** Colunas da linha de tabela (soma dos colspans). */
+  colunas?: number;
 }
 
 export interface BlocoMedido extends Segmento {
@@ -31,6 +37,8 @@ export interface Espacador {
   pos: number;
   altura: number;
   inline: boolean;
+  linha?: boolean;
+  colunas?: number;
 }
 
 export interface ResultadoPaginacao {
@@ -60,7 +68,7 @@ export function calcularPaginacao(
   const quebrar = (s: Segmento) => {
     const usado = s.top - origem;
     const saltos = Math.max(1, Math.ceil(usado / passo));
-    espacadores.push({ pos: s.pos, altura: saltos * passo - usado, inline: s.inline });
+    espacadores.push({ pos: s.pos, altura: saltos * passo - usado, inline: s.inline, ...(s.linha ? { linha: true, colunas: s.colunas } : {}) });
     paginas += saltos;
     origem = s.top;
   };
@@ -94,13 +102,13 @@ export const paginacaoKey = new PluginKey<Espacador[]>('pePaginacao');
 
 const CLASSE_ESPACADOR = 'pe-page-spacer';
 /** Blocos que contêm outros blocos: a paginação desce neles. */
-const CONTEINERES = new Set(['bulletList', 'orderedList', 'listItem', 'blockquote', 'conditional', 'repeat']);
+const CONTEINERES = new Set(['bulletList', 'orderedList', 'listItem', 'blockquote', 'conditional', 'repeat', 'table']);
 const DIVISIVEIS = new Set(['paragraph', 'heading']);
 
 function mesmosEspacadores(a: Espacador[], b: Espacador[]): boolean {
   return (
     a.length === b.length &&
-    a.every((x, i) => x.pos === b[i].pos && x.inline === b[i].inline && Math.abs(x.altura - b[i].altura) < 0.5)
+    a.every((x, i) => x.pos === b[i].pos && x.inline === b[i].inline && !!x.linha === !!b[i].linha && Math.abs(x.altura - b[i].altura) < 0.5)
   );
 }
 
@@ -120,6 +128,12 @@ function criarConversor(view: EditorView) {
   };
 }
 
+function colunasDaLinha(linha: PMNode): number {
+  let n = 0;
+  linha.forEach((celula) => (n += (celula.attrs['colspan'] as number) || 1));
+  return Math.max(1, n);
+}
+
 function medir(view: EditorView, natural: (y: number) => number): BlocoMedido[] {
   const blocos: BlocoMedido[] = [];
   const visitar = (pai: PMNode, inicio: number) => {
@@ -137,6 +151,7 @@ function medir(view: EditorView, natural: (y: number) => number): BlocoMedido[] 
         top: natural(r.top),
         bottom: natural(r.bottom),
         inline: false,
+        ...(node.type.name === 'tableRow' ? { linha: true, colunas: colunasDaLinha(node) } : {}),
         quebraForcadaDepois: node.type.name === 'pageBreak',
         divisivel: DIVISIVEIS.has(node.type.name) && node.content.size > 0,
       });
@@ -185,6 +200,53 @@ function medirLinhas(view: EditorView, natural: (y: number) => number, b: BlocoM
 }
 
 /**
+ * Cria o espaçador. Numa tabela é uma linha vazia (o único elemento válido dentro de <tbody>),
+ * sem bordas, para a tabela "abrir" na folha seguinte.
+ */
+function criarEspacador(e: Espacador, layout: LayoutPagina): HTMLElement {
+  if (e.linha) {
+    const tr = document.createElement('tr');
+    tr.className = `${CLASSE_ESPACADOR} ${CLASSE_ESPACADOR}--linha`;
+    tr.contentEditable = 'false';
+    const td = document.createElement('td');
+    td.colSpan = e.colunas ?? 1;
+    td.style.height = `${e.altura}px`;
+    tr.appendChild(td);
+    return tr;
+  }
+  const el = document.createElement(e.inline ? 'span' : 'div');
+  el.className = CLASSE_ESPACADOR;
+  el.contentEditable = 'false';
+  el.style.display = 'block';
+  el.style.height = `${e.altura}px`;
+  // Onde fica o espaço entre as folhas, medido a partir do topo do espaçador.
+  el.style.setProperty('--pe-gap-ini', `${e.altura - layout.margemSuperior - layout.gap}px`);
+  el.style.setProperty('--pe-gap-fim', `${e.altura - layout.margemSuperior}px`);
+  requestAnimationFrame(() => mascararBordas(el));
+  return el;
+}
+
+/**
+ * Dentro de blocos condicionais/repetição, cobre as bordas tracejadas na altura do
+ * espaçador: a caixa "fecha" no fim de uma folha e "reabre" na seguinte.
+ */
+function mascararBordas(el: HTMLElement): void {
+  if (!el.isConnected || !el.offsetHeight) return;
+  el.querySelectorAll('.pe-page-spacer__mask').forEach((m) => m.remove());
+  const r = el.getBoundingClientRect();
+  const escala = r.height / el.offsetHeight || 1;
+  for (let caixa = el.parentElement?.closest('.pe-logic'); caixa; caixa = caixa.parentElement?.closest('.pe-logic')) {
+    const c = caixa.getBoundingClientRect();
+    for (const x of [c.left, c.right]) {
+      const m = document.createElement('span');
+      m.className = 'pe-page-spacer__mask';
+      m.style.left = `${(x - r.left) / escala - 2.5}px`;
+      el.appendChild(m);
+    }
+  }
+}
+
+/**
  * Paginação visual estilo Word: folhas separadas com espaço entre elas.
  * O documento continua um fluxo único; espaçadores (decorations) empurram
  * o conteúdo que não cabe para a próxima folha. Nada é gravado no JSON.
@@ -194,7 +256,7 @@ export const Pagination = Extension.create<PaginationOptions>({
 
   addOptions() {
     return {
-      layout: () => ({ alturaPagina: 1123, alturaConteudo: 937, gap: 24 }),
+      layout: () => ({ alturaPagina: 1123, alturaConteudo: 937, gap: 24, margemSuperior: 113 }),
       onPaginas: () => undefined,
     };
   },
@@ -224,17 +286,10 @@ export const Pagination = Extension.create<PaginationOptions>({
                 .map((e) =>
                   Decoration.widget(
                     e.pos,
-                    () => {
-                      const el = document.createElement(e.inline ? 'span' : 'div');
-                      el.className = CLASSE_ESPACADOR;
-                      el.contentEditable = 'false';
-                      el.style.display = 'block';
-                      el.style.height = `${e.altura}px`;
-                      return el;
-                    },
+                    () => criarEspacador(e, options.layout()),
                     {
                       side: -1,
-                      key: `pe-esp-${e.inline ? 'i' : 'b'}-${e.pos}-${Math.round(e.altura)}`,
+                      key: `pe-esp-${e.linha ? 'l' + e.colunas : e.inline ? 'i' : 'b'}-${e.pos}-${Math.round(e.altura)}`,
                       ignoreSelection: true,
                     },
                   ),

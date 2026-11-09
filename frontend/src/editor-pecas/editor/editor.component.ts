@@ -111,7 +111,7 @@ export class EditorComponent {
 
   private readonly canvas = viewChild.required<ElementRef<HTMLElement>>('canvas');
   private readonly host = viewChild.required<ElementRef<HTMLElement>>('host');
-  private readonly buscaBar = viewChild(BuscaBarComponent);
+  private readonly buscaBar = viewChild.required(BuscaBarComponent);
   private readonly destroyRef = inject(DestroyRef);
 
   private readonly indiceCampos = computed(
@@ -126,6 +126,7 @@ export class EditorComponent {
       largura: A4_MM.largura * MM_PX,
       altura,
       passo: altura + GAP_PAGINAS_PX,
+      topo: margens.superior * MM_PX,
       conteudo: (A4_MM.altura - margens.superior - margens.inferior) * MM_PX,
     };
   });
@@ -155,7 +156,7 @@ export class EditorComponent {
   constructor() {
     const layout = (): LayoutPagina => {
       const m = untracked(this.medidas);
-      return { alturaPagina: m.altura, alturaConteudo: m.conteudo, gap: GAP_PAGINAS_PX };
+      return { alturaPagina: m.altura, alturaConteudo: m.conteudo, gap: GAP_PAGINAS_PX, margemSuperior: m.topo };
     };
     const editavel = () => this.editor?.isEditable ?? false;
 
@@ -468,7 +469,8 @@ export class EditorComponent {
     const selecao = this.editor.state.selection;
     const termo = selecao.empty ? '' : this.editor.state.doc.textBetween(selecao.from, selecao.to, ' ').slice(0, 100);
     if (termo && !termo.includes('\n')) this.editor.commands.definirBusca(termo);
-    if (this.buscaAberta()) this.buscaBar()?.focar(permitido === 'substituir');
+    // Foco no mesmo instante do atalho: nenhuma tecla seguinte cai no texto.
+    this.buscaBar().abrir(permitido === 'substituir');
     this.buscaAberta.set(permitido);
   }
 
@@ -488,6 +490,7 @@ export class EditorComponent {
 
   protected fecharBusca(): void {
     this.buscaAberta.set(null);
+    this.buscaBar().esconder();
     this.editor.chain().limparBusca().focus().run();
   }
 
