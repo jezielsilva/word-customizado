@@ -1,38 +1,6 @@
 <header class="app-header">
-  <span class="app-title">Gerador de peças</span>
-  <nav class="app-tabs" aria-label="Exemplos">
-    @for (ex of exemplos; track ex.id) {
-      <button type="button" [class.on]="selecionado().id === ex.id" (click)="abrir(ex)">
-        {{ ex.titulo }} <small>{{ ex.modo === 'template' ? 'Modelo' : 'Documento' }}</small>
-      </button>
-    }
-  </nav>
+  <a class="app-title" routerLink="/pecas">Gerador de peças</a>
   <span class="app-flex"></span>
-  <label class="app-switch"><input type="checkbox" [checked]="somenteLeitura()" (change)="somenteLeitura.set(!somenteLeitura())" />Somente leitura</label>
-  @if (!ehModelo()) {
-    <button type="button" class="pe-btn" (click)="editor()?.converterEmModelo()">Salvar como modelo</button>
-  }
+  <span class="app-user"><span class="app-avatar">JS</span><span><b>JEZIEL SILVA</b><small>OAB 999999 AP</small></span></span>
 </header>
-
-<main class="app-main" [class.com-lateral]="ehModelo()">
-  @for (ex of [selecionado()]; track ex.id) {
-    <pe-editor [modo]="ex.modo" [conteudo]="ex.conteudo" [readonly]="somenteLeitura()" [pagina]="pagina()"
-      [campos]="catalogo.grupos()" [formatos]="catalogo.formatos()" (modoChange)="modo.set($event)" />
-  }
-
-  @if (ehModelo()) {
-    <aside class="app-side" aria-label="Campos">
-      <h2>Campos</h2>
-      <p class="app-muted">Clique ou arraste para inserir no texto.</p>
-      @for (g of catalogo.grupos(); track g.nome) {
-        <h3>{{ g.nome }}</h3>
-        @for (c of g.campos; track c.chave) {
-          <button type="button" class="app-field" draggable="true" [disabled]="somenteLeitura()"
-            (click)="inserir(c)" (dragstart)="arrastar($event, c)">
-            <b>{{ c.rotulo }}</b><small>{{ '{{' + c.chave + '}}' }}</small>
-          </button>
-        }
-      }
-    </aside>
-  }
-</main>
+<main class="app-main"><router-outlet /></main>

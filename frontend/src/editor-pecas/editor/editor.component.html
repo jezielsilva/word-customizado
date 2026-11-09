@@ -1,0 +1,158 @@
+<div class="pe-toolbar" role="toolbar" aria-label="Formatação">
+  <div class="pe-group">
+    <button type="button" class="pe-tb" title="Desfazer (Ctrl+Z)" aria-label="Desfazer" [disabled]="readonly() || !estado().canUndo" (click)="cmd(c => c.undo())"><pe-icon nome="undo" /></button>
+    <button type="button" class="pe-tb" title="Refazer (Ctrl+Y)" aria-label="Refazer" [disabled]="readonly() || !estado().canRedo" (click)="cmd(c => c.redo())"><pe-icon nome="redo" /></button>
+  </div>
+
+  <div class="pe-group">
+    <select class="pe-select pe-select--style" title="Estilo do parágrafo" aria-label="Estilo do parágrafo" [disabled]="readonly()"
+      [value]="estado().estilo" (change)="aplicarEstilo($any($event.target).value)">
+      @for (s of estilos; track s.valor) { <option [value]="s.valor">{{ s.rotulo }}</option> }
+    </select>
+    <select class="pe-select pe-select--font" title="Fonte" aria-label="Fonte" [disabled]="readonly()"
+      [value]="estado().fontFamily" (change)="definirFonte($any($event.target).value)">
+      <option value="" disabled hidden>{{ estado().temSelecao ? '' : pagina().fontePadrao }}</option>
+      @for (f of fontes; track f) { <option [value]="f" [style.font-family]="f">{{ f }}</option> }
+    </select>
+    <input class="pe-select pe-select--size" title="Tamanho da fonte (Ctrl+Shift+> / <)" aria-label="Tamanho da fonte" list="pe-tamanhos"
+      [disabled]="readonly()" [value]="estado().fontSize ?? pagina().tamanhoPadrao"
+      (change)="definirTamanho($any($event.target).value)" (keydown.enter)="definirTamanho($any($event.target).value)" />
+    <datalist id="pe-tamanhos">@for (t of tamanhos; track t) { <option [value]="t"></option> }</datalist>
+    <button type="button" class="pe-tb" title="Aumentar fonte (Ctrl+Shift+>)" aria-label="Aumentar fonte" [disabled]="readonly()" (click)="passoTamanho(1)"><pe-icon nome="fontup" /></button>
+    <button type="button" class="pe-tb" title="Diminuir fonte (Ctrl+Shift+<)" aria-label="Diminuir fonte" [disabled]="readonly()" (click)="passoTamanho(-1)"><pe-icon nome="fontdown" /></button>
+  </div>
+
+  <div class="pe-group">
+    <button type="button" class="pe-tb" title="Negrito (Ctrl+B)" aria-label="Negrito" [class.is-on]="estado().bold" [attr.aria-pressed]="estado().bold" [disabled]="readonly()" (click)="cmd(c => c.toggleBold())"><pe-icon nome="bold" /></button>
+    <button type="button" class="pe-tb" title="Itálico (Ctrl+I)" aria-label="Itálico" [class.is-on]="estado().italic" [attr.aria-pressed]="estado().italic" [disabled]="readonly()" (click)="cmd(c => c.toggleItalic())"><pe-icon nome="italic" /></button>
+    <button type="button" class="pe-tb" title="Sublinhado (Ctrl+U)" aria-label="Sublinhado" [class.is-on]="estado().underline" [attr.aria-pressed]="estado().underline" [disabled]="readonly()" (click)="cmd(c => c.toggleUnderline())"><pe-icon nome="underline" /></button>
+    <button type="button" class="pe-tb" title="MAIÚSCULAS / minúsculas (Shift+F3)" aria-label="Alternar maiúsculas" [disabled]="readonly() || !estado().temSelecao" (click)="cmd(c => c.alternarCaixa())"><pe-icon nome="caps" /></button>
+  </div>
+
+  <div class="pe-group">
+    <button type="button" class="pe-tb" title="Alinhar à esquerda (Ctrl+Shift+L)" aria-label="Alinhar à esquerda" [class.is-on]="estado().align === 'left'" [disabled]="readonly()" (click)="cmd(c => c.setTextAlign('left'))"><pe-icon nome="left" /></button>
+    <button type="button" class="pe-tb" title="Centralizar (Ctrl+Shift+E)" aria-label="Centralizar" [class.is-on]="estado().align === 'center'" [disabled]="readonly()" (click)="cmd(c => c.setTextAlign('center'))"><pe-icon nome="center" /></button>
+    <button type="button" class="pe-tb" title="Alinhar à direita (Ctrl+Shift+R)" aria-label="Alinhar à direita" [class.is-on]="estado().align === 'right'" [disabled]="readonly()" (click)="cmd(c => c.setTextAlign('right'))"><pe-icon nome="right" /></button>
+    <button type="button" class="pe-tb" title="Justificar (Ctrl+Shift+J)" aria-label="Justificar" [class.is-on]="estado().align === 'justify'" [disabled]="readonly()" (click)="cmd(c => c.setTextAlign('justify'))"><pe-icon nome="justify" /></button>
+    <button type="button" class="pe-tb" title="Recuo da 1ª linha" aria-label="Recuo da primeira linha" [class.is-on]="estado().firstLineIndent" [disabled]="readonly()" (click)="alternarRecuo()"><pe-icon nome="indent" /></button>
+    <select class="pe-select pe-select--line" title="Entrelinha" aria-label="Entrelinha" [disabled]="readonly()"
+      [value]="estado().lineHeight ?? ''" (change)="definirEntrelinha($any($event.target).value)">
+      <option value="">{{ pagina().entrelinha.toString().replace('.', ',') }} (padrão)</option>
+      @for (l of entrelinhas; track l) { <option [value]="l">{{ l.toString().replace('.', ',') }}</option> }
+    </select>
+  </div>
+
+  <div class="pe-group">
+    <button type="button" class="pe-tb" title="Lista com marcadores (Ctrl+Shift+8)" aria-label="Lista com marcadores" [class.is-on]="estado().bulletList" [disabled]="readonly()" (click)="cmd(c => c.toggleBulletList())"><pe-icon nome="list" /></button>
+    <button type="button" class="pe-tb" title="Lista numerada (Ctrl+Shift+7)" aria-label="Lista numerada" [class.is-on]="estado().orderedList" [disabled]="readonly()" (click)="cmd(c => c.toggleOrderedList())"><pe-icon nome="olist" /></button>
+    <button type="button" class="pe-tb" title="Inserir tabela 3 × 3" aria-label="Inserir tabela" [class.is-on]="estado().emTabela" [disabled]="readonly()" (click)="cmd(c => c.insertTable({ rows: 3, cols: 3, withHeaderRow: false }))"><pe-icon nome="table" /></button>
+    <button type="button" class="pe-tb" title="Quebra de página (Ctrl+Enter)" aria-label="Quebra de página" [disabled]="readonly()" (click)="cmd(c => c.setPageBreak())"><pe-icon nome="pagebreak" /></button>
+    <button #btnComentario type="button" class="pe-tb" title="Comentário interno (selecione um trecho)" aria-label="Comentário interno" [class.is-on]="estado().comentario"
+      [disabled]="readonly() || !estado().temSelecao" (click)="novoComentario(btnComentario)"><pe-icon nome="comment" /></button>
+  </div>
+
+  @if (ehModelo()) {
+    <div class="pe-group">
+      <button type="button" class="pe-btn pe-btn--sm" title="Inserir campo (Ctrl+Shift+F ou digite {{ '{{' }})" [disabled]="readonly()" (click)="abrirSeletor()">
+        <pe-icon nome="tag" [tamanho]="13" />Campo
+      </button>
+      <button #btnVariacao type="button" class="pe-tb" title="Plural e gênero automáticos" aria-label="Plural e gênero" [disabled]="readonly()" (click)="novaVariacao(btnVariacao)"><pe-icon nome="swap" /></button>
+      <button #btnCondicao type="button" class="pe-tb" title="Bloco condicional (Se …)" aria-label="Bloco condicional" [disabled]="readonly()" (click)="novoBlocoLogico('conditional', btnCondicao)"><pe-icon nome="branch" /></button>
+      <button #btnRepetir type="button" class="pe-tb" title="Repetir para cada item da lista" aria-label="Repetir bloco" [disabled]="readonly()" (click)="novoBlocoLogico('repeat', btnRepetir)"><pe-icon nome="repeat" /></button>
+    </div>
+  }
+
+  <div class="pe-group pe-group--zoom">
+    <button type="button" class="pe-tb pe-tb--sm" title="Localizar e substituir (Ctrl+F / Ctrl+H)" aria-label="Localizar" (click)="abrirBusca('buscar')"><pe-icon nome="search" [tamanho]="14" /></button>
+    <button type="button" class="pe-tb pe-tb--sm" title="Diminuir zoom (Ctrl+-)" aria-label="Diminuir zoom" (click)="alterarZoom(-10)"><pe-icon nome="minus" [tamanho]="14" /></button>
+    <button type="button" class="pe-zoom" title="Voltar a 100%" (click)="zoom.set(100)">{{ zoom() }}%</button>
+    <button type="button" class="pe-tb pe-tb--sm" title="Aumentar zoom (Ctrl+=)" aria-label="Aumentar zoom" (click)="alterarZoom(10)"><pe-icon nome="plus" [tamanho]="14" /></button>
+    @if (ehModelo()) {
+      <button type="button" class="pe-tb pe-tb--sm" title="Camadas: campos ou dados de exemplo (Ctrl+Shift+P)" aria-label="Alternar prévia com dados de exemplo"
+        [class.is-on]="previa()" [attr.aria-pressed]="previa()" (click)="previa.update(v => !v)"><pe-icon nome="layers" [tamanho]="15" /></button>
+    }
+  </div>
+
+  @if (estado().emTabela && !readonly()) {
+    <div class="pe-group pe-group--table" aria-label="Tabela">
+      <button type="button" class="pe-btn pe-btn--xs" (click)="cmd(c => c.addRowAfter())">+ Linha</button>
+      <button type="button" class="pe-btn pe-btn--xs" (click)="cmd(c => c.addColumnAfter())">+ Coluna</button>
+      <button type="button" class="pe-btn pe-btn--xs" (click)="cmd(c => c.deleteRow())">− Linha</button>
+      <button type="button" class="pe-btn pe-btn--xs" (click)="cmd(c => c.deleteColumn())">− Coluna</button>
+      <button type="button" class="pe-btn pe-btn--xs" (click)="cmd(c => c.mergeOrSplit())">Mesclar</button>
+      <button type="button" class="pe-btn pe-btn--xs pe-btn--danger" (click)="cmd(c => c.deleteTable())">Excluir tabela</button>
+    </div>
+  }
+</div>
+
+<div class="pe-canvas" #canvas>
+  @if (buscaAberta(); as modoBusca) {
+    <pe-busca-bar [estado]="busca()" [podeSubstituir]="!readonly()" [comSubstituir]="modoBusca === 'substituir'"
+      (buscar)="buscar($event)" (navegar)="navegarBusca($event)" (substituir)="substituir($event)" (fechar)="fecharBusca()" />
+  }
+  <div class="pe-zoom-box" [style.width.px]="medidas().largura * escala()" [style.height.px]="(alturaTotal() + 28) * escala()">
+    <div class="pe-stack" [style.width.px]="medidas().largura" [style.transform]="'scale(' + escala() + ')'" [style]="variaveisDoc()">
+      <div class="pe-ruler" aria-hidden="true">
+        <div class="pe-ruler__margin" [style.width.mm]="pagina().margens.esquerda"></div>
+        <div class="pe-ruler__margin pe-ruler__margin--right" [style.width.mm]="pagina().margens.direita"></div>
+        @for (cm of reguaCm; track cm) {
+          <span class="pe-ruler__tick" [style.left.mm]="cm * 10">@if (cm > 0 && cm < 21) { <i>{{ cm }}</i> }</span>
+        }
+        <span class="pe-ruler__indent" title="Recuo da 1ª linha"
+          [style.left.mm]="pagina().margens.esquerda + (estado().firstLineIndent && estado().estilo === 'normal' ? pagina().recuoPrimeiraLinha : 0)"></span>
+      </div>
+
+      <div class="pe-sheets" [style.height.px]="alturaTotal()">
+        @for (n of listaPaginas(); track n) {
+          <section class="pe-page" [style.top.px]="(n - 1) * medidas().passo" aria-hidden="true">
+            <header class="pe-page__header" [innerHTML]="pagina().cabecalhoHtml"></header>
+            <div class="pe-page__watermark">
+              @if (pagina().marcaDaguaUrl; as url) { <img [src]="url" alt="" /> }
+              @else if (pagina().marcaDaguaTexto) { <span>{{ pagina().marcaDaguaTexto }}</span> }
+            </div>
+            <footer class="pe-page__footer">
+              <div [innerHTML]="pagina().rodapeHtml"></div>
+              @if (pagina().numerarPaginas) { <div class="pe-page__number">Página {{ n }} de {{ paginas() }}</div> }
+            </footer>
+          </section>
+        }
+        <div #host class="pe-content" [style.min-height.px]="alturaTotal()"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="pe-statusbar" aria-live="polite">
+  <span>{{ paginas() }} {{ paginas() === 1 ? 'página' : 'páginas' }} · {{ palavras().toLocaleString('pt-BR') }} {{ palavras() === 1 ? 'palavra' : 'palavras' }}</span>
+  <span class="pe-flex"></span>
+  @if (readonly()) {
+    <span class="pe-badge pe-badge--muted"><pe-icon nome="lock" [tamanho]="12" />Somente leitura</span>
+  }
+  @if (avisos().desconhecidos) {
+    <span class="pe-badge pe-badge--danger" title="Campos com chave fora do catálogo"><pe-icon nome="alert" [tamanho]="12" />{{ avisos().desconhecidos }} campo(s) desconhecido(s)</span>
+  }
+  @if (avisos().marcacoesSobrando) {
+    <span class="pe-badge pe-badge--warn" title="Sobrou texto no formato {{ '{{...}}' }}"><pe-icon nome="alert" [tamanho]="12" />{{ avisos().marcacoesSobrando }} marcação(ões) {{ '{{…}}' }} no texto</span>
+  }
+  <span class="pe-badge pe-badge--mode">{{ ehModelo() ? 'Modelo' : 'Documento' }}</span>
+</div>
+
+@if (seletorAberto()) {
+  <pe-field-picker [grupos]="campos()" (selecionar)="escolherCampo($event)" (fechar)="fecharSeletor()" />
+}
+@if (edicaoCampo(); as ev) {
+  <pe-field-popover [attrs]="ev.attrs" [rect]="ev.rect" [grupos]="campos()" [formatos]="formatos()"
+    (aplicar)="aplicarCampo($event)" (remover)="removerNo(ev.pos)" (fechar)="fecharPopoverEFocar()" />
+}
+@if (edicaoVariacao(); as ev) {
+  <pe-variant-popover [attrs]="ev.attrs" [rect]="ev.rect" [grupos]="campos()" [podeRemover]="ev.pos != null"
+    (aplicar)="aplicarVariacao($event)" (remover)="removerNo(ev.pos!)" (fechar)="fecharPopoverEFocar()" />
+}
+@if (edicaoBloco(); as ev) {
+  <pe-bloco-logico-popover [tipo]="ev.tipo" [valorInicial]="ev.valor" [rect]="ev.rect" [grupos]="campos()" [podeRemover]="ev.pos != null"
+    (aplicar)="aplicarBlocoLogico($event)" (remover)="desfazerBlocoLogico()" (fechar)="fecharPopoverEFocar()" />
+}
+@if (edicaoComentario(); as ev) {
+  <pe-comentario-popover [attrs]="ev.attrs" [rect]="ev.rect" [somenteLeitura]="readonly()"
+    (salvar)="salvarComentario($event)" (remover)="removerComentario()" (fechar)="fecharPopoverEFocar()" />
+}

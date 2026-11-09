@@ -1,0 +1,162 @@
+@if (erroCarga(); as erro) {
+  <div class="pe-empty">
+    <p>{{ erro }}</p>
+    <a class="pe-btn" routerLink="../..">Voltar aos modelos</a>
+  </div>
+} @else if (doc(); as d) {
+  <header class="pe-dochead">
+    <a class="pe-back" routerLink="../.." title="Voltar"><pe-icon nome="back" [tamanho]="16" /><span>{{ ehModelo() ? 'Modelos' : 'Documentos' }}</span></a>
+    <input class="pe-dochead__title" [value]="titulo()" [readOnly]="somenteLeitura()" aria-label="Título"
+      (change)="alterarTitulo($any($event.target).value)" (keydown.enter)="$any($event.target).blur()" />
+    <span class="pe-status" [attr.data-status]="salvamento.status()" aria-live="polite">
+      <pe-icon [nome]="salvamento.status() === 'offline' || salvamento.status() === 'erro' ? 'offline' : 'cloud'" [tamanho]="14" />{{ textoStatus() }}
+    </span>
+    <span class="pe-flex"></span>
+    @if (!somenteLeitura()) {
+      <button type="button" class="pe-btn pe-btn--sm" (click)="dialogo.set({ tipo: 'versao' })"><pe-icon nome="history" [tamanho]="14" />Salvar versão</button>
+    }
+    @if (!ehModelo() && !somenteLeitura()) {
+      <button type="button" class="pe-btn pe-btn--sm" [disabled]="ocupado()" (click)="salvarComoCopia('template')"><pe-icon nome="file" [tamanho]="14" />Salvar como modelo</button>
+    }
+    @if (somenteLeitura()) {
+      <button type="button" class="pe-btn pe-btn--sm" [disabled]="ocupado()" (click)="salvarComoCopia()"><pe-icon nome="file" [tamanho]="14" />Duplicar para editar</button>
+    }
+    <div class="pe-menu-wrap">
+      <button type="button" class="pe-btn pe-btn--sm" aria-haspopup="menu" [attr.aria-expanded]="menuExportar()" (click)="menuExportar.update(v => !v)">
+        <pe-icon nome="download" [tamanho]="14" />Exportar
+      </button>
+      @if (menuExportar()) {
+        <div class="pe-overlay" (mousedown)="menuExportar.set(false)"></div>
+        <div class="pe-menu" role="menu">
+          <button type="button" role="menuitem" (click)="exportar('docx')">Word (.docx)</button>
+          <button type="button" role="menuitem" (click)="exportar('pdf')">PDF</button>
+        </div>
+      }
+    </div>
+    <button type="button" class="pe-tb pe-side-toggle" [class.is-on]="lateralAberta()" title="Painel lateral" aria-label="Painel lateral" (click)="lateralAberta.update(v => !v)"><pe-icon nome="menu" /></button>
+  </header>
+
+  <div class="pe-docbody" [class.com-lateral]="lateralAberta()">
+    @for (atual of [d]; track atual.id) {
+      <pe-editor [conteudo]="atual.conteudo" [modo]="atual.modo" [readonly]="somenteLeitura() || salvamento.status() === 'conflito'"
+        [pagina]="pagina()!" [campos]="grupos()" [formatos]="formatos()" [usuario]="usuario()"
+        (conteudoChange)="alterado($event)" (modoChange)="modo.set($event)" (contagemChange)="contagem.set($event)" />
+    }
+
+    @if (lateralAberta()) {
+      <aside class="pe-side" aria-label="Painel lateral">
+        <div class="pe-tabs" role="tablist">
+          @if (ehModelo()) { <button type="button" role="tab" [class.on]="aba() === 'campos'" (click)="abrirAba('campos')">Campos</button> }
+          <button type="button" role="tab" [class.on]="aba() === 'blocos'" (click)="abrirAba('blocos')">Blocos</button>
+          <button type="button" role="tab" [class.on]="aba() === 'versoes'" (click)="abrirAba('versoes')">Versões</button>
+        </div>
+        <div class="pe-side__body">
+          @switch (aba()) {
+            @case ('campos') {
+              <input class="pe-input" type="search" placeholder="Filtrar campos…" aria-label="Filtrar campos" [value]="filtroCampos()" (input)="filtroCampos.set($any($event.target).value)" />
+              <small class="pe-muted">Clique ou arraste para o texto. Também: Ctrl+Shift+F ou {{ '{{' }}.</small>
+              @for (g of gruposFiltrados(); track g.nome) {
+                <span class="pe-side__group">{{ g.nome }}</span>
+                @for (c of g.campos; track c.chave) {
+                  <button type="button" class="pe-item" draggable="true" [disabled]="somenteLeitura()" (click)="inserirCampo(c)" (dragstart)="arrastarCampo($event, c)">
+                    <pe-icon nome="tag" [tamanho]="14" />
+                    <span><b>{{ c.rotulo }}</b><small>{{ '{{' + c.chave + '}}' }}{{ c.formatoPadrao ? ' · ' + c.formatoPadrao : '' }}</small></span>
+                    <pe-icon nome="plus" [tamanho]="13" />
+                  </button>
+                }
+              } @empty { <small class="pe-muted">Nenhum campo encontrado.</small> }
+            }
+            @case ('blocos') {
+              <small class="pe-muted">Trechos prontos do escritório. Clique ou arraste para o texto.</small>
+              @for (b of blocos(); track b.id) {
+                <button type="button" class="pe-item" draggable="true" [disabled]="somenteLeitura()" (click)="inserirBloco(b)" (dragstart)="arrastarBloco($event, b)">
+                  <pe-icon nome="layers" [tamanho]="14" />
+                  <span><b>{{ b.nome }}</b>@if (b.descricao) { <small>{{ b.descricao }}</small> }</span>
+                  <pe-icon nome="plus" [tamanho]="13" />
+                </button>
+              } @empty { <small class="pe-muted">Nenhum bloco salvo.</small> }
+              @if (!somenteLeitura()) {
+                <button type="button" class="pe-btn pe-btn--sm pe-self-start" (click)="pedirSalvarBloco()"><pe-icon nome="plus" [tamanho]="13" />Salvar seleção como bloco</button>
+              }
+            }
+            @case ('versoes') {
+              @if (versoes(); as lista) {
+                @for (v of lista; track v.numero; let primeira = $first) {
+                  <div class="pe-ver">
+                    <span class="pe-ver__dot" [class.on]="primeira"></span>
+                    <div class="pe-ver__info">
+                      <b>Versão {{ v.numero }}{{ primeira ? ' · mais recente' : '' }}</b>
+                      <small>{{ v.criadoPor }} · {{ data(v.criadoEm) }}</small>
+                      <small>{{ v.nome || motivos[v.motivo] }}</small>
+                    </div>
+                    @if (!somenteLeitura()) {
+                      <button type="button" class="pe-btn pe-btn--xs" (click)="dialogo.set({ tipo: 'restaurar', versao: v })">Restaurar</button>
+                    }
+                  </div>
+                } @empty { <small class="pe-muted">Sem versões ainda.</small> }
+                <small class="pe-muted"><pe-icon nome="lock" [tamanho]="11" /> Restaurar cria uma nova versão; nada é apagado.</small>
+              } @else {
+                <small class="pe-muted">Carregando…</small>
+              }
+            }
+          }
+        </div>
+      </aside>
+    }
+  </div>
+
+  @if (salvamento.status() === 'conflito') {
+    <pe-dialogo titulo="Este documento foi alterado em outro lugar">
+      <p>Outra pessoa (ou outra aba) salvou uma versão mais nova. Suas alterações estão guardadas neste aparelho.</p>
+      <ng-container acoes>
+        <button type="button" class="pe-btn" (click)="recarregarDoServidor()">Recarregar a versão do servidor</button>
+        <button type="button" class="pe-btn pe-btn--primary" [disabled]="ocupado()" (click)="salvarComoCopia()">Salvar minhas alterações como cópia</button>
+      </ng-container>
+    </pe-dialogo>
+  }
+
+  @switch (dialogo()?.tipo) {
+    @case ('recuperar') {
+      <pe-dialogo titulo="Recuperar alterações não salvas?" (fechar)="descartarRascunho()">
+        <p>Há alterações feitas neste aparelho que não chegaram ao servidor.</p>
+        <ng-container acoes>
+          <button type="button" class="pe-btn" (click)="descartarRascunho()">Descartar</button>
+          <button type="button" class="pe-btn pe-btn--primary" (click)="recuperar($any(dialogo()).rascunho)">Recuperar</button>
+        </ng-container>
+      </pe-dialogo>
+    }
+    @case ('versao') {
+      <pe-dialogo titulo="Salvar versão" (fechar)="dialogo.set(null)">
+        <label class="pe-field-label">Nome da versão
+          <input #nomeVersao class="pe-input" placeholder="ex.: Enviada ao cliente" (keydown.enter)="salvarVersao(nomeVersao.value)" />
+        </label>
+        <ng-container acoes>
+          <button type="button" class="pe-btn" (click)="dialogo.set(null)">Cancelar</button>
+          <button type="button" class="pe-btn pe-btn--primary" [disabled]="ocupado()" (click)="salvarVersao(nomeVersao.value)">Salvar</button>
+        </ng-container>
+      </pe-dialogo>
+    }
+    @case ('bloco') {
+      <pe-dialogo titulo="Salvar seleção como bloco" (fechar)="dialogo.set(null)">
+        <label class="pe-field-label">Nome<input #nomeBloco class="pe-input" placeholder="ex.: Pedidos padrão" /></label>
+        <label class="pe-field-label">Descrição (opcional)<input #descBloco class="pe-input" /></label>
+        <ng-container acoes>
+          <button type="button" class="pe-btn" (click)="dialogo.set(null)">Cancelar</button>
+          <button type="button" class="pe-btn pe-btn--primary" [disabled]="ocupado()" (click)="salvarBloco(nomeBloco.value, descBloco.value, $any(dialogo()).conteudo)">Salvar bloco</button>
+        </ng-container>
+      </pe-dialogo>
+    }
+    @case ('restaurar') {
+      <pe-dialogo titulo="Restaurar versão?" (fechar)="dialogo.set(null)">
+        <p>O conteúdo da versão {{ $any(dialogo()).versao.numero }} volta para o editor como uma nova versão. As versões atuais continuam no histórico.</p>
+        <ng-container acoes>
+          <button type="button" class="pe-btn" (click)="dialogo.set(null)">Cancelar</button>
+          <button type="button" class="pe-btn pe-btn--primary" [disabled]="ocupado()" (click)="restaurar($any(dialogo()).versao)">Restaurar</button>
+        </ng-container>
+      </pe-dialogo>
+    }
+  }
+} @else {
+  <div class="pe-empty"><p class="pe-muted">Abrindo documento…</p></div>
+}
+<pe-avisos />
